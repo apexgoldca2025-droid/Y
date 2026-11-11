@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-gray-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Rifas Digitales</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            900: '#14532d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti Library -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.95; transform: scale(1.02); }
+        }
+        .animate-winner {
+            animation: pulse-subtle 1s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="h-full text-gray-800 flex flex-col font-sans antialiased bg-gray-50 selection:bg-brand-500 selection:text-white">
+
+    <!-- Header / Barra de Navegación -->
+    <header class="bg-black text-white sticky top-0 z-40 shadow-md">
+        <div class="max-w-7xl mx-auto px-2 sm:px-4 h-14 flex items-center justify-between">
+            <div class="flex items-center space-x-2 cursor-pointer" onclick="switchTab('public')">
+                <div class="bg-brand-500 text-black p-1.5 rounded-lg font-black text-base">
+                    <i class="fa-solid fa-ticket"></i>
+                </div>
+                <span class="font-bold text-base tracking-tight hover:text-brand-500 transition-colors truncate max-w-[160px] sm:max-w-xs" id="navRaffleTitle">Rifa Digital</span>
+            </div>
+            
+            <div class="flex items-center space-x-1.5">
+                <button onclick="switchTab('public')" id="btnTabPublic" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-brand-500 text-black transition-all flex items-center gap-1.5">
+                    <i class="fa-solid fa-store"></i> <span class="hidden sm:inline">Ver Rifa</span>
+                </button>
+                <button onclick="openAdminAuthModal()" id="btnTabAdmin" class="px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-300 hover:text-white hover:bg-gray-800 transition-all flex items-center gap-1.5">
+                    <i class="fa-solid fa-user-gear"></i> <span class="hidden sm:inline">Admin</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-6 space-y-4 sm:space-y-8">
+
+        <!-- ================= VISTA PÚBLICA / CLIENTE ================= -->
+        <section id="publicView" class="space-y-4 sm:space-y-8">
+            
+            <!-- Hero / Banner de la Rifa -->
+            <div class="bg-white border border-gray-200 rounded-xl sm:rounded-2xl shadow-sm overflow-hidden flex flex-col md:flex-row">
+                <div class="md:w-1/2 h-48 sm:h-64 md:h-auto bg-gray-900 relative overflow-hidden flex items-center justify-center">
+                    <img id="displayImage" src="" alt="Premio de la Rifa" class="w-full h-full object-cover opacity-90 transition-transform duration-500 hover:scale-105" onError="this.src='https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1000&q=80'">
+                    <div class="absolute top-2 left-2 sm:top-4 sm:left-4 bg-black/70 backdrop-blur-md text-white text-[10px] sm:text-xs px-2.5 py-1 rounded-full font-semibold border border-white/20">
+                        <i class="fa-solid fa-trophy text-brand-500 mr-1"></i> Gran Premio
+                    </div>
+                </div>
+                <div class="md:w-1/2 p-3.5 sm:p-8 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-start gap-2">
+                            <h1 id="displayTitle" class="text-lg sm:text-3xl font-extrabold text-gray-900 leading-tight">Cargando Título...</h1>
+                            <div class="text-right whitespace-nowrap">
+                                <span id="displayPrice" class="text-brand-600 text-base sm:text-2xl font-black block"></span>
+                                <div class="text-xs text-gray-700 font-semibold mt-0.5">
+                                    <span id="displayPriceBs"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <p id="displayDescription" class="mt-2.5 sm:mt-4 text-gray-600 text-xs sm:text-base leading-relaxed">Cargando descripción de la rifa...</p>
+                    </div>
+
+                    <!-- Progreso y Estadísticas -->
+                    <div class="mt-4 pt-4 border-t border-gray-100 space-y-2.5">
+                        <div class="flex justify-between text-xs font-semibold text-gray-600">
+                            <span>Progreso de Boletos</span>
+                            <span id="displayStatsText">0 / 0 Vendidos</span>
+                        </div>
+                        <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden p-0.5 border border-gray-200">
+                            <div id="displayProgressBar" class="bg-brand-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-1.5 pt-1 text-center text-[11px] sm:text-xs">
+                            <div class="bg-gray-50 p-1.5 rounded-lg border border-gray-100">
+                                <span class="block text-gray-400 font-medium">Disponibles</span>
+                                <span id="statAvailable" class="font-bold text-gray-800 text-xs sm:text-sm">0</span>
+                            </div>
+                            <div class="bg-amber-50 p-1.5 rounded-lg border border-amber-100">
+                                <span class="block text-amber-600 font-medium">Reservados</span>
+                                <span id="statPending" class="font-bold text-amber-700 text-xs sm:text-sm">0</span>
+                            </div>
+                            <div class="bg-emerald-50 p-1.5 rounded-lg border border-emerald-100">
+                                <span class="block text-emerald-600 font-medium">Vendidos</span>
+                                <span id="statSold" class="font-bold text-emerald-700 text-xs sm:text-sm">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla de Selección de Números -->
+            <div class="bg-white border border-gray-200 rounded-xl sm:rounded-2xl shadow-sm p-3 sm:p-6 space-y-4">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 pb-3 border-b border-gray-100">
+                    <div>
+                        <h2 class="text-base sm:text-xl font-bold text-gray-900 flex items-center gap-2">
+                            <i class="fa-solid fa-list-ol text-brand-600"></i> Selecciona tus Números
+                        </h2>
+                        <p class="text-[11px] sm:text-xs text-gray-500 mt-0.5">Toca los números disponibles para apartarlos en tu compra.</p>
+                    </div>
+
+                    <!-- Leyenda -->
+                    <div class="flex flex-wrap items-center gap-2.5 text-[11px] sm:text-xs font-medium">
+                        <div class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-white border border-gray-300"></span> Libre</div>
+                        <div class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-brand-500 border border-brand-600"></span> Elegido</div>
+                        <div class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-amber-400"></span> Pendiente</div>
+                        <div class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-gray-800"></span> Ocupado</div>
+                    </div>
+                </div>
+
+                <!-- Buscador y Filtro -->
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <div class="relative flex-1">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                        <input type="text" id="publicSearchInput" oninput="renderPublicGrid()" placeholder="Buscar número específico (ej. 042)..." class="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition-all">
+                    </div>
+                    <select id="publicFilterState" onchange="renderPublicGrid()" class="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition-all">
+                        <option value="all">Todos los números</option>
+                        <option value="available">Solo Disponibles</option>
+                        <option value="pending">Solo Reservados</option>
+                        <option value="sold">Solo Vendidos</option>
+                    </select>
+                </div>
+
+                <!-- Grilla de Tickets -->
+                <div id="ticketsGrid" class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-1.5 sm:gap-2.5 max-h-[420px] sm:max-h-[500px] overflow-y-auto custom-scrollbar p-0.5">
+                    <!-- Generado Dinámicamente por JS -->
+                </div>
+            </div>
+
+            <!-- Carrito Flotante de Compra -->
+            <div id="floatingCart" class="fixed bottom-3 left-1/2 -translate-x-1/2 w-[96%] max-w-lg bg-black text-white p-3 rounded-xl shadow-2xl border border-gray-800 z-30 flex items-center justify-between transition-all duration-300 translate-y-24 opacity-0 pointer-events-none">
+                <div>
+                    <span class="text-[10px] text-gray-400 block font-medium">Boletos seleccionados:</span>
+                    <div class="flex items-center gap-1.5">
+                        <span id="cartCount" class="font-extrabold text-brand-500 text-base">0</span>
+                        <span id="cartNumbers" class="text-[11px] text-gray-300 truncate max-w-[130px] sm:max-w-[180px] inline-block"></span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2.5">
+                    <div class="text-right">
+                        <span id="cartTotal" class="text-base font-black text-white block">$0.00</span>
+                        <span id="cartTotalBs" class="text-[10px] font-mono text-brand-400 block">≈ 0.00 Bs</span>
+                    </div>
+                    <button onclick="openCheckoutModal()" class="bg-brand-500 hover:bg-brand-600 text-black font-bold px-3.5 py-2 rounded-lg text-xs transition-all shadow-lg flex items-center gap-1.5">
+                        Comprar <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- ================= PANEL DE ADMINISTRACIÓN ================= -->
+        <section id="adminView" class="hidden space-y-4 sm:space-y-8">
+            
+            <!-- Dashboard Admin Header -->
+            <div class="bg-black text-white rounded-xl sm:rounded-2xl p-4 sm:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                <div>
+                    <span class="text-brand-500 font-bold text-[10px] uppercase tracking-wider block mb-0.5">Panel de Control</span>
+                    <h2 class="text-xl sm:text-3xl font-extrabold">Gestión Integral de la Rifa</h2>
+                    <p class="text-gray-400 text-xs sm:text-sm mt-0.5">Configura parámetros, valida pagos y ejecuta el sorteo digital.</p>
+                </div>
+                <div class="flex flex-wrap gap-1.5 w-full sm:w-auto">
+                    <button onclick="openWinnerModal()" class="flex-1 sm:flex-none bg-brand-500 hover:bg-brand-600 text-black font-bold px-3 py-2 rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 shadow-lg">
+                        <i class="fa-solid fa-dice"></i> Sorteo En Vivo
+                    </button>
+                    <button onclick="exportToCSV()" class="bg-gray-800 hover:bg-gray-700 text-white font-semibold px-3 py-2 rounded-lg text-xs transition-all border border-gray-700 flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-csv"></i> CSV
+                    </button>
+                    <button onclick="switchTab('public')" class="bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold px-2.5 py-2 rounded-lg text-xs transition-all">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Sub-Navegación Admin -->
+            <div class="border-b border-gray-200">
+                <nav class="flex space-x-6">
+                    <button onclick="switchAdminSubTab('participants')" id="subTabParticipants" class="border-b-2 border-brand-500 py-2.5 text-xs sm:text-sm font-bold text-black flex items-center gap-1.5">
+                        <i class="fa-solid fa-users"></i> Participantes
+                    </button>
+                    <button onclick="switchAdminSubTab('settings')" id="subTabSettings" class="border-b-2 border-transparent py-2.5 text-xs sm:text-sm font-medium text-gray-500 hover:text-black flex items-center gap-1.5">
+                        <i class="fa-solid fa-sliders"></i> Configuración
+                    </button>
+                </nav>
+            </div>
+
+            <!-- TAB PARTICIPANTES -->
+            <div id="adminSubParticipants" class="space-y-4">
+                <!-- Filtros Admin -->
+                <div class="bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row gap-2 justify-between items-center">
+                    <div class="relative w-full sm:w-80">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                        <input type="text" id="adminSearchInput" oninput="renderAdminTable()" placeholder="Buscar por cliente, cédula o ticket..." class="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <select id="adminFilterStatus" onchange="renderAdminTable()" class="w-full sm:w-auto px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand-500">
+                            <option value="all">Todos los estados</option>
+                            <option value="available">Disponibles</option>
+                            <option value="pending">Pendientes / Reservados</option>
+                            <option value="sold">Confirmados / Pagados</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Tabla de Datos -->
+                <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-gray-900 text-white text-[10px] uppercase tracking-wider">
+                                    <th class="py-2.5 px-3">Boleto</th>
+                                    <th class="py-2.5 px-3">Cliente</th>
+                                    <th class="py-2.5 px-3">Cédula</th>
+                                    <th class="py-2.5 px-3">Teléfono</th>
+                                    <th class="py-2.5 px-3">Ref</th>
+                                    <th class="py-2.5 px-3">Estado</th>
+                                    <th class="py-2.5 px-3 text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminTableBody" class="divide-y divide-gray-100 text-xs">
+                                <!-- Filas dinámicas -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB CONFIGURACIÓN -->
+            <div id="adminSubSettings" class="hidden space-y-4">
+                <form id="settingsForm" onsubmit="saveSettings(event)" class="bg-white p-4 sm:p-8 rounded-xl sm:rounded-2xl border border-gray-200 shadow-sm space-y-4">
+                    <h3 class="text-base font-bold text-gray-900 pb-2.5 border-b border-gray-100">Parámetros Principales</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-600 mb-1">Título de la Rifa</label>
+                            <input type="text" id="cfgTitle" required class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-600 mb-1">Precio por Boleto ($ USD)</label>
+                            <input type="number" step="0.01" id="cfgPrice" required class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-600 mb-1">Tasa BCV Manual (Respaldo en Bs)</label>
+                            <div class="flex gap-2">
+                                <input type="number" step="0.01" id="cfgBcvRate" placeholder="Ej: 900.00" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                                <button type="button" onclick="fetchBcvRate(true)" class="px-3 bg-gray-900 text-white font-bold rounded-lg text-[10px] hover:bg-gray-800 whitespace-nowrap">
+                                    <i class="fa-solid fa-rotate mr-1"></i> API
+                                </button>
+                            </div>
+                            <span class="text-[10px] text-gray-500 mt-1 block">Tasa detectada: <strong id="lblCurrentBcv" class="font-mono text-brand-600">Obteniendo...</strong></span>
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-600 mb-1">Cantidad Total de Números</label>
+                            <select id="cfgTotalTickets" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                                <option value="50">50 Boletos (00-49)</option>
+                                <option value="100">100 Boletos (00-99)</option>
+                                <option value="200">200 Boletos (000-199)</option>
+                                <option value="500">500 Boletos (000-499)</option>
+                                <option value="1000">1000 Boletos (0000-0999)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-600 mb-1">URL Imagen Destacada</label>
+                            <input type="url" id="cfgImage" placeholder="https://..." class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-600 mb-1">WhatsApp para Comprobantes</label>
+                            <input type="text" id="cfgWhatsapp" placeholder="Ej: 584120000000" required class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-600 mb-1">Contraseña de Admin</label>
+                            <input type="password" id="cfgPassword" required class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase text-gray-600 mb-1">Descripción / Condiciones</label>
+                        <textarea id="cfgDescription" rows="2" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase text-gray-600 mb-1">Datos Bancarios y Métodos de Pago</label>
+                        <textarea id="cfgBankInfo" rows="3" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none"></textarea>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row justify-between items-center gap-3 pt-3 border-t border-gray-100">
+                        <button type="button" onclick="confirmResetRaffle()" class="text-red-600 hover:text-red-800 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-red-50 transition-all">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Reiniciar Rifa
+                        </button>
+                        
+                        <button type="submit" class="bg-brand-500 hover:bg-brand-600 text-black font-bold px-5 py-2.5 rounded-lg text-xs transition-all shadow-md w-full sm:w-auto">
+                            Guardar Cambios
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Pie de página -->
+    <footer class="bg-white border-t border-gray-200 py-4 mt-auto text-center text-[11px] text-gray-500">
+        <div class="max-w-7xl mx-auto px-2">
+            <p>© <span id="year"></span> Sistema de Rifas Digitales. Todos los derechos reservados.</p>
+        </div>
+    </footer>
+
+    <!-- ================= MODALES ================= -->
+
+    <!-- Modal Autenticación Admin -->
+    <div id="adminAuthModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 hidden">
+        <div class="bg-white w-full max-w-sm rounded-xl shadow-2xl border border-gray-200 p-5 space-y-4">
+            <div class="text-center">
+                <div class="w-10 h-10 bg-black text-brand-500 rounded-xl flex items-center justify-center mx-auto text-base mb-2">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900">Acceso Administrativo</h3>
+                <p class="text-[11px] text-gray-500 mt-0.5">Ingresa la contraseña para gestionar el sistema</p>
+            </div>
+            <form onsubmit="verifyAdminAuth(event)" class="space-y-3">
+                <div>
+                    <input type="password" id="adminPasswordInput" placeholder="Contraseña..." required class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                </div>
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeModal('adminAuthModal')" class="w-1/2 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-lg text-xs transition-all">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="w-1/2 py-2 bg-black hover:bg-gray-900 text-white font-bold rounded-lg text-xs transition-all shadow-md">
+                        Ingresar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Checkout / Registro de Boletos -->
+    <div id="checkoutModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-2.5 hidden overflow-y-auto custom-scrollbar">
+        <div class="bg-white w-full max-w-md rounded-xl shadow-2xl border border-gray-200 p-4 sm:p-6 space-y-4 my-4">
+            <div class="flex justify-between items-center border-b border-gray-100 pb-3">
+                <div>
+                    <h3 class="text-base font-bold text-gray-900">Finalizar Reserva</h3>
+                    <p class="text-[11px] text-gray-500">Completa tus datos para apartar tus números</p>
+                </div>
+                <button onclick="closeModal('checkoutModal')" class="text-gray-400 hover:text-gray-600 p-1">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <!-- Resumen de compra -->
+            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 space-y-1.5">
+                <div class="flex justify-between text-[11px] text-gray-600">
+                    <span>Números seleccionados:</span>
+                    <span id="checkoutNumbers" class="font-bold text-gray-900"></span>
+                </div>
+                <div class="flex justify-between items-baseline text-xs font-bold text-gray-900 pt-1.5 border-t border-gray-200">
+                    <span>Total a pagar:</span>
+                    <div class="text-right">
+                        <span id="checkoutTotal" class="text-brand-600 text-base block"></span>
+                        <span id="checkoutTotalBs" class="text-[10px] font-mono text-gray-600 block font-normal"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Datos bancarios para transferir -->
+            <div class="space-y-1.5">
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] font-bold uppercase text-gray-600">Datos Bancarios para Pago:</span>
+                    <button onclick="copyBankInfo()" class="text-[11px] text-brand-600 font-bold hover:underline flex items-center gap-1">
+                        <i class="fa-regular fa-copy"></i> Copiar
+                    </button>
+                </div>
+                <div id="checkoutBankDisplay" class="bg-gray-900 text-gray-200 p-3 rounded-lg text-[11px] font-mono whitespace-pre-line border border-gray-800 leading-relaxed">
+                    <!-- Dinámico -->
+                </div>
+            </div>
+
+            <!-- Formulario de Registro Estricto -->
+            <form id="checkoutForm" onsubmit="processCheckout(event)" class="space-y-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-600 mb-1">Nombre Completo *</label>
+                        <input type="text" id="custName" required placeholder="Ej. Juan Pérez" 
+                            pattern="^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$" 
+                            oninput="this.value = this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '')"
+                            class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-600 mb-1">Cédula / Documento *</label>
+                        <input type="text" id="custDoc" required placeholder="Ej. 12345678" 
+                            pattern="^[0-9]+$" 
+                            maxlength="10"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                            class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-600 mb-1">WhatsApp *</label>
+                        <input type="tel" id="custPhone" required placeholder="Ej. 04121234567" 
+                            pattern="^[0-9]{10,15}$" 
+                            maxlength="15"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                            class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-600 mb-1">Correo Electrónico</label>
+                        <input type="email" id="custEmail" placeholder="juan@ejemplo.com" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-600 mb-1">Nº Referencia (Últimos 4 dígitos) *</label>
+                    <input type="text" id="custRef" required placeholder="Ej: 4321" 
+                        pattern="^[0-9]{4}$" 
+                        maxlength="4"
+                        oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                        class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                </div>
+
+                <div class="pt-1">
+                    <button type="submit" class="w-full py-3 bg-brand-500 hover:bg-brand-600 text-black font-extrabold rounded-lg text-xs sm:text-sm transition-all shadow-md flex items-center justify-center gap-1.5">
+                        <i class="fa-brands fa-whatsapp text-base"></i> Confirmar y Enviar a WhatsApp
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Editar Ticket Admin -->
+    <div id="editTicketModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 hidden">
+        <div class="bg-white w-full max-w-sm rounded-xl shadow-2xl border border-gray-200 p-5 space-y-4">
+            <div class="flex justify-between items-center border-b border-gray-100 pb-3">
+                <h3 class="text-base font-bold text-gray-900">Editar Ticket #<span id="editTicketNumDisplay"></span></h3>
+                <button onclick="closeModal('editTicketModal')" class="text-gray-400 hover:text-gray-600">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+            
+            <form onsubmit="saveTicketEdit(event)" class="space-y-3">
+                <input type="hidden" id="editTicketId">
+                
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-600 mb-1">Estado del Boleto</label>
+                    <select id="editTicketStatus" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        <option value="available">Disponible (Libre)</option>
+                        <option value="pending">Pendiente / Reservado</option>
+                        <option value="sold">Confirmado / Pagado</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-600 mb-1">Nombre Comprador</label>
+                    <input type="text" id="editCustName" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-600 mb-1">Cédula</label>
+                        <input type="text" id="editCustDoc" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-600 mb-1">Teléfono</label>
+                        <input type="text" id="editCustPhone" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-600 mb-1">Nº Comprobante / Ref</label>
+                    <input type="text" id="editCustRef" class="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                </div>
+
+                <div class="flex justify-between items-center pt-3 border-t border-gray-100">
+                    <button type="button" onclick="clearSingleTicket()" class="text-red-600 hover:text-red-800 text-[11px] font-bold">
+                        Liberar
+                    </button>
+                    <div class="flex gap-1.5">
+                        <button type="button" onclick="closeModal('editTicketModal')" class="px-3 py-1.5 bg-gray-100 text-gray-700 font-bold rounded-lg text-[11px]">Cancelar</button>
+                        <button type="submit" class="px-3 py-1.5 bg-black text-white font-bold rounded-lg text-[11px]">Guardar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Sorteo En Vivo con Ruleta -->
+    <div id="winnerModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 hidden">
+        <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl border border-gray-200 p-5 text-center space-y-4 relative overflow-hidden">
+            <button onclick="closeModal('winnerModal')" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600">
+                <i class="fa-solid fa-xmark text-base"></i>
+            </button>
+
+            <div>
+                <span class="bg-brand-100 text-brand-900 border border-brand-500/30 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider inline-block mb-1">
+                    Sorteo Oficial Digital
+                </span>
+                <h3 class="text-xl font-black text-gray-900">Generador de Ganador</h3>
+            </div>
+
+            <div class="py-6 bg-gray-900 rounded-xl border-2 border-brand-500 relative flex flex-col items-center justify-center shadow-inner">
+                <div id="winnerBox" class="text-5xl font-black text-brand-500 tracking-widest font-mono">
+                    ---
+                </div>
+                <div id="winnerName" class="text-white font-bold text-xs mt-2 h-5">
+                    Presiona Iniciar
+                </div>
+            </div>
+
+            <div class="space-y-2.5">
+                <button id="btnStartDraw" onclick="runLotteryDraw()" class="w-full py-3 bg-brand-500 hover:bg-brand-600 text-black font-extrabold rounded-xl text-sm transition-all shadow-xl flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-play"></i> ¡GIRAR RULETA!
+                </button>
+                
+                <div id="winnerDetails" class="hidden bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-left space-y-1 text-[11px]">
+                    <p class="font-bold text-emerald-900 text-xs mb-0.5">¡Ganador Seleccionado!</p>
+                    <p><strong>Comprador:</strong> <span id="wDetailName"></span></p>
+                    <p><strong>Cédula:</strong> <span id="wDetailDoc"></span></p>
+                    <p><strong>Teléfono:</strong> <span id="wDetailPhone"></span></p>
+                    <p><strong>Comprobante:</strong> <span id="wDetailRef"></span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notificaciones -->
+    <div id="toast" class="fixed top-16 right-3 bg-black text-white px-3 py-2 rounded-lg shadow-2xl border border-gray-800 text-xs font-medium z-50 transform translate-x-full transition-transform duration-300 flex items-center gap-2">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-brand-500"></i>
+        <span id="toastMsg">Notificación</span>
+    </div>
+
+    <!-- JavaScript Lógica Principal -->
+    <script>
+        const DEFAULT_SETTINGS = {
+            title: "Gran Rifa de Fin de Año 2026",
+            price: 5.00,
+            bcvRate: 0,
+            totalTickets: 100,
+            image: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1000&q=80",
+            whatsapp: "584120000000",
+            password: "admin123",
+            description: "¡Participa por un combo espectacular! El sorteo se realizará de forma transparente en vivo al vender todos los números.",
+            bankInfo: "BANCO MERCANTIL\nCuenta: 0105-0000-0000-0000-0000\nCI: V-12.345.678\nPago Móvil: 0412-0000000"
+        };
+
+        let appSettings = {};
+        let ticketsData = [];
+        let selectedTickets = [];
+        let liveBcvRate = 0;
+
+        window.onload = function() {
+            document.getElementById('year').textContent = new Date().getFullYear();
+            loadStateFromStorage();
+            fetchBcvRate();
+            renderPublicView();
+        };
+
+        async function fetchBcvRate(manualAlert = false) {
+            try {
+                const response = await fetch('https://bcv.today/api/v1/rate.json');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && data.USD) {
+                        liveBcvRate = parseFloat(data.USD);
+                        updateBcvDisplays();
+                        if (manualAlert) showToast(`Tasa BCV actualizada: ${liveBcvRate.toFixed(2)} Bs/USD`, 'success');
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.log('Falló la consulta automática BCV, probando endpoint secundario...', err);
+            }
+
+            try {
+                const resp2 = await fetch('https://datos.cromstudio.com.ve/dolar');
+                if (resp2.ok) {
+                    const data2 = await resp2.json();
+                    if (data2 && data2.current && data2.current.usd) {
+                        liveBcvRate = parseFloat(data2.current.usd);
+                        updateBcvDisplays();
+                        if (manualAlert) showToast(`Tasa BCV actualizada: ${liveBcvRate.toFixed(2)} Bs/USD`, 'success');
+                        return;
+                    }
+                }
+            } catch (err2) {
+                console.log('Error en fallback BCV', err2);
+            }
+
+            if (appSettings.bcvRate && appSettings.bcvRate > 0) {
+                liveBcvRate = parseFloat(appSettings.bcvRate);
+                updateBcvDisplays();
+                if (manualAlert) showToast(`Usando tasa manual guardada: ${liveBcvRate.toFixed(2)} Bs/USD`, 'warning');
+            } else {
+                liveBcvRate = 900.00; // Tasa por defecto de respaldo
+                updateBcvDisplays();
+                if (manualAlert) showToast('No se pudo conectar a la API BCV. Se usó la tasa por defecto.', 'warning');
+            }
+        }
+
+        function getEffectiveBcvRate() {
+            return (appSettings.bcvRate && parseFloat(appSettings.bcvRate) > 0) ? parseFloat(appSettings.bcvRate) : liveBcvRate;
+        }
+
+        function updateBcvDisplays() {
+            const rate = getEffectiveBcvRate();
+            const lbl = document.getElementById('lblCurrentBcv');
+            if (lbl) lbl.textContent = rate > 0 ? `${rate.toFixed(2)} Bs/USD` : 'Sin datos';
+            renderPublicView();
+        }
+
+        function loadStateFromStorage() {
+            const savedSettings = localStorage.getItem('raffle_settings');
+            if (savedSettings) {
+                appSettings = JSON.parse(savedSettings);
+            } else {
+                appSettings = { ...DEFAULT_SETTINGS };
+                saveSettingsToStorage();
+            }
+
+            const savedTickets = localStorage.getItem('raffle_tickets');
+            if (savedTickets) {
+                ticketsData = JSON.parse(savedTickets);
+                adjustTicketsCount();
+            } else {
+                generateEmptyTickets();
+            }
+        }
+
+        function saveSettingsToStorage() {
+            localStorage.setItem('raffle_settings', JSON.stringify(appSettings));
+        }
+
+        function saveTicketsToStorage() {
+            localStorage.setItem('raffle_tickets', JSON.stringify(ticketsData));
+        }
+
+        function generateEmptyTickets() {
+            ticketsData = [];
+            const count = parseInt(appSettings.totalTickets);
+            const digits = count > 100 ? 3 : 2;
+
+            for (let i = 0; i < count; i++) {
+                const numStr = String(i).padStart(digits, '0');
+                ticketsData.push({
+                    number: numStr,
+                    status: 'available',
+                    customer: { name: '', doc: '', phone: '', email: '', ref: '' }
+                });
+            }
+            saveTicketsToStorage();
+        }
+
+        function adjustTicketsCount() {
+            const targetCount = parseInt(appSettings.totalTickets);
+            if (ticketsData.length !== targetCount) {
+                generateEmptyTickets();
+            }
+        }
+
+        function switchTab(tabName) {
+            const publicView = document.getElementById('publicView');
+            const adminView = document.getElementById('adminView');
+            const btnPublic = document.getElementById('btnTabPublic');
+            const btnAdmin = document.getElementById('btnTabAdmin');
+
+            if (tabName === 'public') {
+                publicView.classList.remove('hidden');
+                adminView.classList.add('hidden');
+                btnPublic.className = "px-3 py-1.5 rounded-lg text-sm font-semibold bg-brand-500 text-black transition-all flex items-center gap-2";
+                btnAdmin.className = "px-3 py-1.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800 transition-all flex items-center gap-2";
+                renderPublicView();
+            } else if (tabName === 'admin') {
+                publicView.classList.add('hidden');
+                adminView.classList.remove('hidden');
+                btnAdmin.className = "px-3 py-1.5 rounded-lg text-sm font-semibold bg-brand-500 text-black transition-all flex items-center gap-2";
+                btnPublic.className = "px-3 py-1.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800 transition-all flex items-center gap-2";
+                renderAdminView();
+            }
+        }
+
+        function switchAdminSubTab(subTab) {
+            const tabPart = document.getElementById('adminSubParticipants');
+            const tabSet = document.getElementById('adminSubSettings');
+            const btnPart = document.getElementById('subTabParticipants');
+            const btnSet = document.getElementById('subTabSettings');
+
+            if (subTab === 'participants') {
+                tabPart.classList.remove('hidden');
+                tabSet.classList.add('hidden');
+                btnPart.className = "border-b-2 border-brand-500 py-3 text-sm font-bold text-black flex items-center gap-2";
+                btnSet.className = "border-b-2 border-transparent py-3 text-sm font-medium text-gray-500 hover:text-black flex items-center gap-2";
+                renderAdminTable();
+            } else {
+                tabPart.classList.add('hidden');
+                tabSet.classList.remove('hidden');
+                btnSet.className = "border-b-2 border-brand-500 py-3 text-sm font-bold text-black flex items-center gap-2";
+                btnPart.className = "border-b-2 border-transparent py-3 text-sm font-medium text-gray-500 hover:text-black flex items-center gap-2";
+                populateSettingsForm();
+            }
+        }
+
+        function renderPublicView() {
+            document.getElementById('navRaffleTitle').textContent = appSettings.title;
+            document.getElementById('displayTitle').textContent = appSettings.title;
+            
+            const ticketPriceUsd = parseFloat(appSettings.price) || 0;
+            const rateStr = getEffectiveBcvRate();
+            const ticketPriceBs = ticketPriceUsd * rateStr;
+
+            document.getElementById('displayPrice').textContent = `$${ticketPriceUsd.toFixed(2)}`;
+            document.getElementById('displayPriceBs').textContent = `${ticketPriceBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Bs.`;
+            
+            document.getElementById('displayDescription').textContent = appSettings.description;
+            document.getElementById('displayImage').src = appSettings.image;
+
+            const soldCount = ticketsData.filter(t => t.status === 'sold').length;
+            const pendingCount = ticketsData.filter(t => t.status === 'pending').length;
+            const availCount = ticketsData.filter(t => t.status === 'available').length;
+            const total = ticketsData.length;
+
+            document.getElementById('displayStatsText').textContent = `${soldCount} / ${total} Vendidos`;
+            document.getElementById('statAvailable').textContent = availCount;
+            document.getElementById('statPending').textContent = pendingCount;
+            document.getElementById('statSold').textContent = soldCount;
+
+            const percentage = Math.round((soldCount / total) * 100);
+            document.getElementById('displayProgressBar').style.width = `${percentage}%`;
+
+            renderPublicGrid();
+            updateFloatingCart();
+        }
+
+        function renderPublicGrid() {
+            const gridContainer = document.getElementById('ticketsGrid');
+            gridContainer.innerHTML = '';
+
+            const searchValue = document.getElementById('publicSearchInput').value.toLowerCase().trim();
+            const filterState = document.getElementById('publicFilterState').value;
+
+            const filtered = ticketsData.filter(t => {
+                const matchesNum = t.number.toLowerCase().includes(searchValue);
+                const matchesState = filterState === 'all' || t.status === filterState;
+                return matchesNum && matchesState;
+            });
+
+            if (filtered.length === 0) {
+                gridContainer.innerHTML = `
+                    <div class="col-span-full py-8 text-center text-gray-400 text-sm">
+                        <i class="fa-solid fa-ticket-simple text-3xl mb-2 block"></i>
+                        No se encontraron números con los criterios de búsqueda.
+                    </div>
+                `;
+                return;
+            }
+
+            filtered.forEach(ticket => {
+                const isSelected = selectedTickets.includes(ticket.number);
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                
+                let baseClasses = "py-3 rounded-xl font-bold text-xs sm:text-sm transition-all flex flex-col items-center justify-center border shadow-sm relative overflow-hidden select-none ";
+                
+                if (isSelected) {
+                    baseClasses += "bg-brand-500 text-black border-brand-600 scale-105 shadow-md ring-2 ring-brand-500 ring-offset-2";
+                } else if (ticket.status === 'available') {
+                    baseClasses += "bg-white hover:bg-brand-50 text-gray-800 border-gray-200 hover:border-brand-500 cursor-pointer";
+                } else if (ticket.status === 'pending') {
+                    baseClasses += "bg-amber-100 text-amber-800 border-amber-300 cursor-not-allowed opacity-90";
+                } else if (ticket.status === 'sold') {
+                    baseClasses += "bg-gray-800 text-gray-400 border-gray-900 cursor-not-allowed opacity-80";
+                }
+
+                btn.className = baseClasses;
+                
+                let iconStr = '';
+                if (ticket.status === 'sold') {
+                    iconStr = '<i class="fa-solid fa-lock text-[10px] mt-0.5"></i>';
+                } else if (ticket.status === 'pending') {
+                    iconStr = '<i class="fa-solid fa-clock text-[10px] mt-0.5"></i>';
+                }
+
+                btn.innerHTML = `<span>#${ticket.number}</span>${iconStr}`;
+
+                if (ticket.status === 'available') {
+                    btn.onclick = () => toggleSelectTicket(ticket.number);
+                } else {
+                    btn.onclick = () => showToast(`El boleto #${ticket.number} no está disponible`, 'warning');
+                }
+
+                gridContainer.appendChild(btn);
+            });
+        }
+
+        function toggleSelectTicket(numStr) {
+            const index = selectedTickets.indexOf(numStr);
+            if (index > -1) {
+                selectedTickets.splice(index, 1);
+            } else {
+                selectedTickets.push(numStr);
+            }
+            renderPublicGrid();
+            updateFloatingCart();
+        }
+
+        function updateFloatingCart() {
+            const cart = document.getElementById('floatingCart');
+            if (selectedTickets.length > 0) {
+                document.getElementById('cartCount').textContent = selectedTickets.length;
+                document.getElementById('cartNumbers').textContent = selectedTickets.map(n => `#${n}`).join(', ');
+                
+                const totalPriceUsd = selectedTickets.length * parseFloat(appSettings.price);
+                const rateBs = getEffectiveBcvRate();
+                const totalPriceBs = totalPriceUsd * rateBs;
+
+                document.getElementById('cartTotal').textContent = `$${totalPriceUsd.toFixed(2)}`;
+                document.getElementById('cartTotalBs').textContent = `${totalPriceBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Bs.`;
+
+                cart.classList.remove('translate-y-24', 'opacity-0', 'pointer-events-none');
+            } else {
+                cart.classList.add('translate-y-24', 'opacity-0', 'pointer-events-none');
+            }
+        }
+
+        function openCheckoutModal() {
+            if (selectedTickets.length === 0) return;
+
+            document.getElementById('checkoutNumbers').textContent = selectedTickets.map(n => `#${n}`).join(', ');
+            const totalUsd = selectedTickets.length * parseFloat(appSettings.price);
+            const rateBs = getEffectiveBcvRate();
+            const totalBs = totalUsd * rateBs;
+
+            document.getElementById('checkoutTotal').textContent = `$${totalUsd.toFixed(2)}`;
+            document.getElementById('checkoutTotalBs').textContent = `${totalBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Bs.`;
+            document.getElementById('checkoutBankDisplay').textContent = appSettings.bankInfo;
+
+            openModal('checkoutModal');
+        }
+
+        function copyBankInfo() {
+            navigator.clipboard.writeText(appSettings.bankInfo);
+            showToast('Datos bancarios copiados al portapapeles', 'success');
+        }
+
+        function processCheckout(event) {
+            event.preventDefault();
+
+            const name = document.getElementById('custName').value.trim();
+            const doc = document.getElementById('custDoc').value.trim();
+            const phone = document.getElementById('custPhone').value.trim();
+            const email = document.getElementById('custEmail').value.trim();
+            const ref = document.getElementById('custRef').value.trim();
+
+            if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(name)) {
+                showToast('El nombre solo debe contener letras', 'error');
+                return;
+            }
+            if (!/^[0-9]+$/.test(doc)) {
+                showToast('La cédula solo debe contener números', 'error');
+                return;
+            }
+            if (!/^[0-9]{10,15}$/.test(phone)) {
+                showToast('El teléfono debe tener entre 10 y 15 números', 'error');
+                return;
+            }
+            if (!/^[0-9]{4}$/.test(ref)) {
+                showToast('La referencia de pago debe ser exactamente de 4 dígitos', 'error');
+                return;
+            }
+
+            ticketsData.forEach(t => {
+                if (selectedTickets.includes(t.number)) {
+                    t.status = 'pending';
+                    t.customer = { name, doc, phone, email, ref };
+                }
+            });
+
+            saveTicketsToStorage();
+
+            const numListStr = selectedTickets.map(n => `#${n}`).join(', ');
+            const totalUsdStr = (selectedTickets.length * parseFloat(appSettings.price)).toFixed(2);
+            const totalBsStr = (parseFloat(totalUsdStr) * getEffectiveBcvRate()).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+            let msg = `*¡HOLA! QUIERO APARTAR MIS BOLETOS DE LA RIFA*\n\n`;
+            msg += `*Rifa:* ${appSettings.title}\n`;
+            msg += `*Boletos ELEGIDOS:* ${numListStr}\n`;
+            msg += `*Monto Total:* $${totalUsdStr} USD (≈ ${totalBsStr} Bs)\n\n`;
+            msg += `*DATOS DEL COMPRADOR:*\n`;
+            msg += `• *Nombre:* ${name}\n`;
+            msg += `• *Cédula/Doc:* ${doc}\n`;
+            msg += `• *Teléfono:* ${phone}\n`;
+            msg += `• *Nº Referencia / Pago:* ${ref}\n\n`;
+            msg += `Adjunto mi comprobante para verificar la compra. ¡Gracias!`;
+
+            const encodedMsg = encodeURIComponent(msg);
+            const waPhone = appSettings.whatsapp.replace(/[^0-9]/g, '');
+            const waUrl = `https://wa.me/${waPhone}?text=${encodedMsg}`;
+
+            selectedTickets = [];
+            closeModal('checkoutModal');
+            document.getElementById('checkoutForm').reset();
+            renderPublicView();
+
+            showToast('Reserva realizada. Abriendo WhatsApp...', 'success');
+
+            setTimeout(() => {
+                window.open(waUrl, '_blank');
+            }, 800);
+        }
+
+        function openAdminAuthModal() {
+            openModal('adminAuthModal');
+        }
+
+        function verifyAdminAuth(e) {
+            e.preventDefault();
+            const pass = document.getElementById('adminPasswordInput').value;
+            if (pass === appSettings.password) {
+                closeModal('adminAuthModal');
+                document.getElementById('adminPasswordInput').value = '';
+                switchTab('admin');
+                showToast('Acceso correcto como Administrador', 'success');
+            } else {
+                showToast('Contraseña incorrecta', 'error');
+            }
+        }
+
+        function renderAdminView() {
+            renderAdminTable();
+        }
+
+        function renderAdminTable() {
+            const tbody = document.getElementById('adminTableBody');
+            tbody.innerHTML = '';
+
+            const searchValue = document.getElementById('adminSearchInput').value.toLowerCase().trim();
+            const filterStatus = document.getElementById('adminFilterStatus').value;
+
+            const filtered = ticketsData.filter(t => {
+                const matchNum = t.number.includes(searchValue);
+                const matchCust = t.customer.name.toLowerCase().includes(searchValue) ||
+                                  t.customer.doc.toLowerCase().includes(searchValue) ||
+                                  t.customer.phone.toLowerCase().includes(searchValue) ||
+                                  t.customer.ref.toLowerCase().includes(searchValue);
+                const matchState = filterStatus === 'all' || t.status === filterStatus;
+
+                return (matchNum || matchCust) && matchState;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="py-8 text-center text-gray-400">
+                            No se encontraron boletos que coincidan con los filtros.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            filtered.forEach(ticket => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50 transition-colors border-b border-gray-100";
+
+                let statusBadge = '';
+                if (ticket.status === 'available') {
+                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600 border border-gray-200">Disponible</span>`;
+                } else if (ticket.status === 'pending') {
+                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">Pendiente</span>`;
+                } else if (ticket.status === 'sold') {
+                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">Pagado</span>`;
+                }
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-mono font-bold text-gray-900">#${ticket.number}</td>
+                    <td class="py-3 px-4 font-medium text-gray-900">${ticket.customer.name || '<span class="text-gray-300">--</span>'}</td>
+                    <td class="py-3 px-4 text-gray-600 text-xs">${ticket.customer.doc || '--'}</td>
+                    <td class="py-3 px-4 text-gray-600 text-xs">${ticket.customer.phone || '--'}</td>
+                    <td class="py-3 px-4 text-gray-600 font-mono text-xs">${ticket.customer.ref || '--'}</td>
+                    <td class="py-3 px-4">${statusBadge}</td>
+                    <td class="py-3 px-4 text-right">
+                        <button onclick="openEditTicketModal('${ticket.number}')" class="px-3 py-1 bg-black hover:bg-gray-800 text-white text-xs font-bold rounded-lg transition-all">
+                            <i class="fa-solid fa-pen"></i> Editar
+                        </button>
+                    </td>
+                `;
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openEditTicketModal(numStr) {
+            const ticket = ticketsData.find(t => t.number === numStr);
+            if (!ticket) return;
+
+            document.getElementById('editTicketNumDisplay').textContent = ticket.number;
+            document.getElementById('editTicketId').value = ticket.number;
+            document.getElementById('editTicketStatus').value = ticket.status;
+            document.getElementById('editCustName').value = ticket.customer.name;
+            document.getElementById('editCustDoc').value = ticket.customer.doc;
+            document.getElementById('editCustPhone').value = ticket.customer.phone;
+            document.getElementById('editCustRef').value = ticket.customer.ref;
+
+            openModal('editTicketModal');
+        }
+
+        function saveTicketEdit(e) {
+            e.preventDefault();
+            const numStr = document.getElementById('editTicketId').value;
+            const ticket = ticketsData.find(t => t.number === numStr);
+
+            if (ticket) {
+                ticket.status = document.getElementById('editTicketStatus').value;
+                ticket.customer.name = document.getElementById('editCustName').value.trim();
+                ticket.customer.doc = document.getElementById('editCustDoc').value.trim();
+                ticket.customer.phone = document.getElementById('editCustPhone').value.trim();
+                ticket.customer.ref = document.getElementById('editCustRef').value.trim();
+
+                saveTicketsToStorage();
+                closeModal('editTicketModal');
+                renderAdminTable();
+                showToast(`Boleto #${numStr} actualizado correctamente`, 'success');
+            }
+        }
+
+        function clearSingleTicket() {
+            const numStr = document.getElementById('editTicketId').value;
+            const ticket = ticketsData.find(t => t.number === numStr);
+
+            if (ticket) {
+                ticket.status = 'available';
+                ticket.customer = { name: '', doc: '', phone: '', email: '', ref: '' };
+                saveTicketsToStorage();
+                closeModal('editTicketModal');
+                renderAdminTable();
+                showToast(`Boleto #${numStr} restablecido como disponible`, 'success');
+            }
+        }
+
+        function populateSettingsForm() {
+            document.getElementById('cfgTitle').value = appSettings.title;
+            document.getElementById('cfgPrice').value = appSettings.price;
+            document.getElementById('cfgBcvRate').value = appSettings.bcvRate || '';
+            document.getElementById('cfgTotalTickets').value = appSettings.totalTickets;
+            document.getElementById('cfgImage').value = appSettings.image;
+            document.getElementById('cfgWhatsapp').value = appSettings.whatsapp;
+            document.getElementById('cfgPassword').value = appSettings.password;
+            document.getElementById('cfgDescription').value = appSettings.description;
+            document.getElementById('cfgBankInfo').value = appSettings.bankInfo;
+
+            updateBcvDisplays();
+        }
+
+        function saveSettings(e) {
+            e.preventDefault();
+            const oldTotal = parseInt(appSettings.totalTickets);
+            const newTotal = parseInt(document.getElementById('cfgTotalTickets').value);
+
+            appSettings.title = document.getElementById('cfgTitle').value.trim();
+            appSettings.price = parseFloat(document.getElementById('cfgPrice').value);
+            appSettings.bcvRate = parseFloat(document.getElementById('cfgBcvRate').value) || 0;
+            appSettings.totalTickets = newTotal;
+            appSettings.image = document.getElementById('cfgImage').value.trim();
+            appSettings.whatsapp = document.getElementById('cfgWhatsapp').value.trim();
+            appSettings.password = document.getElementById('cfgPassword').value.trim();
+            appSettings.description = document.getElementById('cfgDescription').value.trim();
+            appSettings.bankInfo = document.getElementById('cfgBankInfo').value.trim();
+
+            saveSettingsToStorage();
+
+            if (oldTotal !== newTotal) {
+                generateEmptyTickets();
+            }
+
+            renderPublicView();
+            showToast('Configuración guardada exitosamente', 'success');
+        }
+
+        function confirmResetRaffle() {
+            if (confirm("¿Estás seguro de que deseas reiniciar la rifa completa? Se borrarán los datos de todos los compradores y boletos.")) {
+                generateEmptyTickets();
+                renderAdminTable();
+                showToast('La rifa ha sido restablecida a cero', 'warning');
+            }
+        }
+
+        function exportToCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Boleto,Estado,Nombre,Cedula,Telefono,Email,Referencia\n";
+
+            ticketsData.forEach(t => {
+                const row = [
+                    `"${t.number}"`,
+                    `"${t.status}"`,
+                    `"${t.customer.name}"`,
+                    `"${t.customer.doc}"`,
+                    `"${t.customer.phone}"`,
+                    `"${t.customer.email}"`,
+                    `"${t.customer.ref}"`
+                ].join(",");
+                csvContent += row + "\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `participantes_rifa_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function openWinnerModal() {
+            document.getElementById('winnerBox').textContent = "---";
+            document.getElementById('winnerName').textContent = "Presiona Girar para comenzar";
+            document.getElementById('winnerDetails').classList.add('hidden');
+            document.getElementById('btnStartDraw').disabled = false;
+            openModal('winnerModal');
+        }
+
+        function runLotteryDraw() {
+            const confirmedTickets = ticketsData.filter(t => t.status === 'sold');
+
+            if (confirmedTickets.length === 0) {
+                showToast('No hay boletos confirmados / pagados para realizar el sorteo.', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('btnStartDraw');
+            btn.disabled = true;
+
+            const box = document.getElementById('winnerBox');
+            const nameBox = document.getElementById('winnerName');
+            const detailsDiv = document.getElementById('winnerDetails');
+            detailsDiv.classList.add('hidden');
+
+            let counter = 0;
+            const speed = 60;
+            const totalDuration = 4000;
+            const maxTicks = totalDuration / speed;
+
+            const interval = setInterval(() => {
+                const randomSample = confirmedTickets[Math.floor(Math.random() * confirmedTickets.length)];
+                box.textContent = `#${randomSample.number}`;
+                nameBox.textContent = randomSample.customer.name;
+                counter++;
+
+                if (counter >= maxTicks) {
+                    clearInterval(interval);
+
+                    const winnerIndex = Math.floor(Math.random() * confirmedTickets.length);
+                    const winner = confirmedTickets[winnerIndex];
+
+                    box.textContent = `#${winner.number}`;
+                    nameBox.textContent = `🎉 ${winner.customer.name} 🎉`;
+
+                    document.getElementById('wDetailName').textContent = winner.customer.name;
+                    document.getElementById('wDetailDoc').textContent = winner.customer.doc;
+                    document.getElementById('wDetailPhone').textContent = winner.customer.phone;
+                    document.getElementById('wDetailRef').textContent = winner.customer.ref;
+                    detailsDiv.classList.remove('hidden');
+
+                    btn.disabled = false;
+
+                    confetti({
+                        particleCount: 120,
+                        spread: 70,
+                        origin: { y: 0.6 }
+                    });
+                }
+            }, speed);
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMsg.textContent = msg;
+
+            if (type === 'success') {
+                toastIcon.className = "fa-solid fa-circle-check text-brand-500 text-lg";
+            } else if (type === 'warning') {
+                toastIcon.className = "fa-solid fa-triangle-exclamation text-amber-500 text-lg";
+            } else if (type === 'error') {
+                toastIcon.className = "fa-solid fa-circle-xmark text-red-500 text-lg";
+            }
+
+            toast.classList.remove('translate-x-full');
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+            }, 3500);
+        }
+    </script>
+</body>
+</html>
