@@ -182,7 +182,12 @@
                 <div class="flex items-center gap-2.5">
                     <div class="text-right">
                         <span id="cartTotal" class="text-base font-black text-white block">$0.00</span>
-                        <span id="cartTotalBs" class="text-[10px] font-mono text-brand-400 block">≈ 0.00 Bs</span>
+                        <div class="flex items-center justify-end gap-1.5 mt-0.5">
+                            <span id="cartTotalBs" class="text-[10px] font-mono text-brand-400 block">≈ 0.00 Bs</span>
+                            <button type="button" onclick="copyCartTotalBs()" class="text-gray-400 hover:text-white transition-colors text-xs p-0.5" title="Copiar monto en Bs">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                        </div>
                     </div>
                     <button onclick="openCheckoutModal()" class="bg-brand-500 hover:bg-brand-600 text-black font-bold px-3.5 py-2 rounded-lg text-xs transition-all shadow-lg flex items-center gap-1.5">
                         Comprar <i class="fa-solid fa-arrow-right"></i>
@@ -407,7 +412,12 @@
                     <span>Total a pagar:</span>
                     <div class="text-right">
                         <span id="checkoutTotal" class="text-brand-600 text-base block"></span>
-                        <span id="checkoutTotalBs" class="text-[10px] font-mono text-gray-600 block font-normal"></span>
+                        <div class="flex items-center justify-end gap-1.5 mt-0.5">
+                            <span id="checkoutTotalBs" class="text-[10px] font-mono text-gray-600 block font-normal"></span>
+                            <button type="button" onclick="copyModalTotalBs()" class="text-gray-500 hover:text-black transition-colors text-xs p-0.5" title="Copiar monto en Bs">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -597,6 +607,7 @@
         let ticketsData = [];
         let selectedTickets = [];
         let liveBcvRate = 0;
+        let lastCalculatedBs = 0;
 
         window.onload = function() {
             document.getElementById('year').textContent = new Date().getFullYear();
@@ -860,14 +871,30 @@
                 
                 const totalPriceUsd = selectedTickets.length * parseFloat(appSettings.price);
                 const rateBs = getEffectiveBcvRate();
-                const totalPriceBs = totalPriceUsd * rateBs;
+                lastCalculatedBs = totalPriceUsd * rateBs;
 
                 document.getElementById('cartTotal').textContent = `$${totalPriceUsd.toFixed(2)}`;
-                document.getElementById('cartTotalBs').textContent = `${totalPriceBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Bs.`;
+                document.getElementById('cartTotalBs').textContent = `${lastCalculatedBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Bs.`;
 
                 cart.classList.remove('translate-y-24', 'opacity-0', 'pointer-events-none');
             } else {
                 cart.classList.add('translate-y-24', 'opacity-0', 'pointer-events-none');
+            }
+        }
+
+        function copyCartTotalBs() {
+            if (lastCalculatedBs > 0) {
+                const amountStr = lastCalculatedBs.toFixed(2);
+                navigator.clipboard.writeText(amountStr);
+                showToast(`Monto copiado: ${amountStr} Bs`, 'success');
+            }
+        }
+
+        function copyModalTotalBs() {
+            if (lastCalculatedBs > 0) {
+                const amountStr = lastCalculatedBs.toFixed(2);
+                navigator.clipboard.writeText(amountStr);
+                showToast(`Monto copiado: ${amountStr} Bs`, 'success');
             }
         }
 
@@ -877,10 +904,10 @@
             document.getElementById('checkoutNumbers').textContent = selectedTickets.map(n => `#${n}`).join(', ');
             const totalUsd = selectedTickets.length * parseFloat(appSettings.price);
             const rateBs = getEffectiveBcvRate();
-            const totalBs = totalUsd * rateBs;
+            lastCalculatedBs = totalUsd * rateBs;
 
             document.getElementById('checkoutTotal').textContent = `$${totalUsd.toFixed(2)}`;
-            document.getElementById('checkoutTotalBs').textContent = `${totalBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Bs.`;
+            document.getElementById('checkoutTotalBs').textContent = `${lastCalculatedBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Bs.`;
             document.getElementById('checkoutBankDisplay').textContent = appSettings.bankInfo;
 
             openModal('checkoutModal');
