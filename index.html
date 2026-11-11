@@ -28,6 +28,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Canvas Confetti Library -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <style>
         .custom-scrollbar::-webkit-scrollbar {
             width: 6px;
@@ -313,13 +316,19 @@
                         </div>
 
                         <div>
+                            <label class="block text-[10px] font-bold uppercase text-gray-600 mb-1">URL Firebase Realtime Database</label>
+                            <input type="url" id="cfgFirebaseUrl" placeholder="https://tu-proyecto-default-rtdb.firebaseio.com" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                            <span class="text-[9px] text-gray-500 mt-0.5 block">Permite sincronización automática en la nube entre diferentes teléfonos.</span>
+                        </div>
+
+                        <div>
                             <label class="block text-[10px] font-bold uppercase text-gray-600 mb-1">URL Imagen Destacada</label>
                             <input type="url" id="cfgImage" placeholder="https://..." class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
                         </div>
 
                         <div>
                             <label class="block text-[10px] font-bold uppercase text-gray-600 mb-1">WhatsApp para Comprobantes</label>
-                            <input type="text" id="cfgWhatsapp" placeholder="Ej: 584120000000" required class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                            <input type="text" id="cfgWhatsapp" placeholder="Ej: 584126012186" required class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none">
                         </div>
 
                         <div>
@@ -596,6 +605,7 @@
             price: 5.00,
             bcvRate: 0,
             totalTickets: 100,
+            firebaseUrl: "",
             image: "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1000&q=80",
             whatsapp: "584126012186",
             password: "admin123",
@@ -608,13 +618,66 @@
         let selectedTickets = [];
         let liveBcvRate = 0;
         let lastCalculatedBs = 0;
+        let dbRef = null;
+        let isSyncing = false;
 
         window.onload = function() {
             document.getElementById('year').textContent = new Date().getFullYear();
             loadStateFromStorage();
+            initCloudSync();
             fetchBcvRate();
             renderPublicView();
         };
+
+        function initCloudSync() {
+            const fUrl = appSettings.firebaseUrl ? appSettings.firebaseUrl.trim() : "";
+            if (fUrl) {
+                try {
+                    if (!firebase.apps.length) {
+                        firebase.initializeApp({
+                            databaseURL: fUrl
+                        });
+                    }
+                    dbRef = firebase.database().ref('rifa_data');
+                    
+                    // Escuchar cambios en tiempo real desde la nube
+                    dbRef.on('value', (snapshot) => {
+                        const cloudData = snapshot.val();
+                        if (cloudData) {
+                            if (cloudData.settings) {
+                                appSettings = { ...DEFAULT_SETTINGS, ...cloudData.settings };
+                                saveSettingsToStorage(true);
+                            }
+                            if (cloudData.tickets && Array.isArray(cloudData.tickets)) {
+                                ticketsData = cloudData.tickets;
+                                saveTicketsToStorage(true);
+                                adjustTicketsCount();
+                                renderPublicView();
+                                if (!document.getElementById('adminView').classList.contains('hidden')) {
+                                    renderAdminTable();
+                                }
+                            }
+                        }
+                    });
+                } catch (e) {
+                    console.log("Error al conectar con Firebase Realtime Database:", e);
+                }
+            }
+        }
+
+        function pushToCloud() {
+            if (dbRef && !isSyncing) {
+                isSyncing = true;
+                dbRef.set({
+                    settings: appSettings,
+                    tickets: ticketsData
+                }).catch(err => {
+                    console.log("Error al sincronizar con la nube:", err);
+                }).finally(() => {
+                    isSyncing = false;
+                });
+            }
+        }
 
         async function fetchBcvRate(manualAlert = false) {
             try {
@@ -652,7 +715,7 @@
                 updateBcvDisplays();
                 if (manualAlert) showToast(`Usando tasa manual guardada: ${liveBcvRate.toFixed(2)} Bs/USD`, 'warning');
             } else {
-                liveBcvRate = 900.00; // Tasa por defecto de respaldo
+                liveBcvRate = 900.00;
                 updateBcvDisplays();
                 if (manualAlert) showToast('No se pudo conectar a la API BCV. Se usó la tasa por defecto.', 'warning');
             }
@@ -675,7 +738,7 @@
                 appSettings = JSON.parse(savedSettings);
             } else {
                 appSettings = { ...DEFAULT_SETTINGS };
-                saveSettingsToStorage();
+                saveSettingsToStorage(true);
             }
 
             const savedTickets = localStorage.getItem('raffle_tickets');
@@ -683,19 +746,21 @@
                 ticketsData = JSON.parse(savedTickets);
                 adjustTicketsCount();
             } else {
-                generateEmptyTickets();
+                generateEmptyTickets(true);
             }
         }
 
-        function saveSettingsToStorage() {
+        function saveSettingsToStorage(skipCloud = false) {
             localStorage.setItem('raffle_settings', JSON.stringify(appSettings));
+            if (!skipCloud) pushToCloud();
         }
 
-        function saveTicketsToStorage() {
+        function saveTicketsToStorage(skipCloud = false) {
             localStorage.setItem('raffle_tickets', JSON.stringify(ticketsData));
+            if (!skipCloud) pushToCloud();
         }
 
-        function generateEmptyTickets() {
+        function generateEmptyTickets(skipCloud = false) {
             ticketsData = [];
             const count = parseInt(appSettings.totalTickets);
             const digits = count > 100 ? 3 : 2;
@@ -708,7 +773,7 @@
                     customer: { name: '', doc: '', phone: '', email: '', ref: '' }
                 });
             }
-            saveTicketsToStorage();
+            saveTicketsToStorage(skipCloud);
         }
 
         function adjustTicketsCount() {
@@ -784,7 +849,7 @@
             document.getElementById('statPending').textContent = pendingCount;
             document.getElementById('statSold').textContent = soldCount;
 
-            const percentage = Math.round((soldCount / total) * 100);
+            const percentage = total > 0 ? Math.round((soldCount / total) * 100) : 0;
             document.getElementById('displayProgressBar').style.width = `${percentage}%`;
 
             renderPublicGrid();
@@ -1118,6 +1183,7 @@
             document.getElementById('cfgPrice').value = appSettings.price;
             document.getElementById('cfgBcvRate').value = appSettings.bcvRate || '';
             document.getElementById('cfgTotalTickets').value = appSettings.totalTickets;
+            document.getElementById('cfgFirebaseUrl').value = appSettings.firebaseUrl || '';
             document.getElementById('cfgImage').value = appSettings.image;
             document.getElementById('cfgWhatsapp').value = appSettings.whatsapp;
             document.getElementById('cfgPassword').value = appSettings.password;
@@ -1131,11 +1197,14 @@
             e.preventDefault();
             const oldTotal = parseInt(appSettings.totalTickets);
             const newTotal = parseInt(document.getElementById('cfgTotalTickets').value);
+            const newFirebaseUrl = document.getElementById('cfgFirebaseUrl').value.trim();
+            const urlChanged = appSettings.firebaseUrl !== newFirebaseUrl;
 
             appSettings.title = document.getElementById('cfgTitle').value.trim();
             appSettings.price = parseFloat(document.getElementById('cfgPrice').value);
             appSettings.bcvRate = parseFloat(document.getElementById('cfgBcvRate').value) || 0;
             appSettings.totalTickets = newTotal;
+            appSettings.firebaseUrl = newFirebaseUrl;
             appSettings.image = document.getElementById('cfgImage').value.trim();
             appSettings.whatsapp = document.getElementById('cfgWhatsapp').value.trim();
             appSettings.password = document.getElementById('cfgPassword').value.trim();
@@ -1146,6 +1215,10 @@
 
             if (oldTotal !== newTotal) {
                 generateEmptyTickets();
+            }
+
+            if (urlChanged) {
+                initCloudSync();
             }
 
             renderPublicView();
